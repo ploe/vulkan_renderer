@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 
 #include "instance.h"
+#include "devices.h"
 
 /* types */
 
@@ -65,6 +66,23 @@ static void Panic(const char *format, ...) {
 
   va_end(args);
   abort();
+}
+
+static PhysicalDevices CreatePhysicalDevices(VkInstance instance) {
+  uint32_t count;
+  vkEnumeratePhysicalDevices(instance, &count, NULL);
+
+  if (!count) Panic("Unabled to find PhysicalDevices with Vulkan support\n");
+
+  VkPhysicalDevice *devices = calloc(count, sizeof(VkPhysicalDevice));
+  if (!devices) Panic("Unable to allocate VkPhysicalDevice array\n");
+
+  vkEnumeratePhysicalDevices(instance, &count, devices);
+
+  return (PhysicalDevices) {
+    count : count,
+    devices : devices
+  };
 }
 
 static RequiredProperties GetGlfwRequiredProperties() {

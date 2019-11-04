@@ -3,6 +3,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "devices.h"
+
 /* types */
 
 typedef struct {
@@ -43,6 +45,8 @@ typedef struct {
 
   InstanceRequires requires;
   InstanceSupports supports;
+
+  PhysicalDevices physical;
 } Instance;
 
 Instance CreateInstance();

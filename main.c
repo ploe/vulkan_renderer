@@ -1,20 +1,20 @@
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include "instance.h"
 
 int main(int argc, char *argv[]) {
-  glfwInit();
+    Instance instance = CreateSDLInstance();
+    //DestroyGlfwInstance(instance);
 
-  glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    while (1) {
+        SDL_Event e;
 
-  GLFWwindow* window = glfwCreateWindow(800, 600, "soda: Vulkan", NULL, NULL);
-  Instance instance = CreateInstance();
-  DestroyInstance(instance);
+    	while (SDL_PollEvent(&e)) {
+		    switch(e.type) {
+        		case SDL_QUIT:
+				return 0;
+				break;
+		    }
+	    }
+    }
 
-  glfwDestroyWindow(window);
-  glfwTerminate();
-
-  return 0;
+	return 0;
 }

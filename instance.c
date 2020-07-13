@@ -23,25 +23,25 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessengerCallback();
 
 /* macros */
 
-#define COUNT_ELEMS(array, type) (sizeof(array) / sizeof(type))
+#define ARRAY_SIZE(array, type) (sizeof(array) / sizeof(type))
 
 /* data */
 
 VkDebugUtilsMessengerCreateInfoEXT DEBUG_UTILS_CREATE_INFO = {
-    sType : VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
-    pNext: NULL,
-    flags: 0,
-    messageSeverity:
+    .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+    .pNext = NULL,
+    .flags =  0,
+    .messageSeverity =
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
-    messageType:
+    .messageType =
       VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
       VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
-    pfnUserCallback: DebugMessengerCallback,
-    pUserData: NULL,
+    .pfnUserCallback = DebugMessengerCallback,
+    .pUserData = NULL,
 };
 
 const char *RENDERER_DEBUG_EXTENSIONS[] = {
@@ -80,8 +80,8 @@ static PhysicalDevices CreatePhysicalDevices(VkInstance instance) {
   vkEnumeratePhysicalDevices(instance, &count, devices);
 
   return (PhysicalDevices) {
-    count : count,
-    devices : devices
+    .count = count,
+    .devices = devices,
   };
 }
 
@@ -93,32 +93,31 @@ static RequiredProperties GetGlfwRequiredProperties() {
   return required;
 }
 
-static RequiredProperties GetEmptyRequiredProperties() {
-  /* Returns an empty RequiredProperties struct. Use this if we want to toggle
+RequiredProperties EmptyRequiredProperties = {
+  /* An empty RequiredProperties struct. Use this if we want to toggle
   the RequiredProperties off */
-  return (RequiredProperties) {
-    count: 0,
-    data: NULL
-  };
-}
+    .count = 0,
+    .data = NULL,
+};
+
 
 static RequiredProperties GetRendererRequiredLayers(bool debug) {
   /* Return the required extensions for the Renderer (i.e. this app) */
-  if (!debug) return GetEmptyRequiredProperties();
+  if (!debug) return EmptyRequiredProperties;
 
   return (RequiredProperties) {
-    count : COUNT_ELEMS(RENDERER_DEBUG_LAYERS, const char *),
-    data : RENDERER_DEBUG_LAYERS
+    .count = ARRAY_SIZE(RENDERER_DEBUG_LAYERS, const char *),
+    .data = RENDERER_DEBUG_LAYERS
   };
 }
 
 static RequiredProperties GetRendererRequiredProperties(bool debug) {
     /* Return the required extensions for the Renderer (i.e. this app) */
-    if (!debug) return GetEmptyRequiredProperties();
+    if (!debug) return EmptyRequiredProperties;
 
     return (RequiredProperties) {
-      count : COUNT_ELEMS(RENDERER_DEBUG_EXTENSIONS, const char *),
-      data : RENDERER_DEBUG_EXTENSIONS
+      .count = ARRAY_SIZE(RENDERER_DEBUG_EXTENSIONS, const char *),
+      .data = RENDERER_DEBUG_EXTENSIONS
     };
 }
 
@@ -135,7 +134,7 @@ static uint32_t GetTotalRequiredProperties(RequiredProperties sources[], size_t 
 
 static RequiredProperties CreateRequiredProperties(RequiredProperties sources[], size_t elems, uint32_t total) {
   /* Allocates and initialises of strings for the RequiredProperties */
-  if (total == 0) return GetEmptyRequiredProperties();
+  if (total == 0) return EmptyRequiredProperties;
 
   const char **required = calloc(total, sizeof(const char *));
 
@@ -153,8 +152,8 @@ static RequiredProperties CreateRequiredProperties(RequiredProperties sources[],
   }
 
   return (RequiredProperties) {
-    data : required,
-    count: total
+    .data = required,
+    .count = total
   };
 }
 
@@ -175,7 +174,7 @@ static RequiredProperties GetRequiredExtensions() {
     GetGlfwRequiredProperties(),
   };
 
-  size_t elems = COUNT_ELEMS(sources, RequiredProperties);
+  size_t elems = ARRAY_SIZE(sources, RequiredProperties);
   uint32_t total = GetTotalRequiredProperties(sources, elems);
 
   return CreateRequiredProperties(sources, elems, total);
@@ -186,7 +185,7 @@ static RequiredProperties GetRequiredLayers() {
     GetRendererRequiredLayers(true)
   };
 
-  size_t elems = COUNT_ELEMS(sources, RequiredProperties);
+  size_t elems = ARRAY_SIZE(sources, RequiredProperties);
   uint32_t total = GetTotalRequiredProperties(sources, elems);
 
   return CreateRequiredProperties(sources, elems, total);
@@ -203,8 +202,8 @@ static ExtensionProperties GetSupportedExtensions() {
   vkEnumerateInstanceExtensionProperties(NULL, &count, data);
 
   return (ExtensionProperties) {
-    count : count,
-    data : data
+    .count = count,
+    .data = data
   };
 }
 
@@ -219,8 +218,8 @@ static LayerProperties GetSupportedLayers() {
   vkEnumerateInstanceLayerProperties(&count, data);
 
   return (LayerProperties) {
-    data : data,
-    count : count
+    .data = data,
+    .count = count
   };
 }
 
@@ -318,25 +317,25 @@ Instance CreateInstance() {
 
 
   VkApplicationInfo appInfo = {
-    sType : VK_STRUCTURE_TYPE_APPLICATION_INFO,
-    pNext : NULL,
-    pApplicationName : "renderer/vulkan",
-    applicationVersion : VK_MAKE_VERSION(1, 0, 0),
-    pEngineName : "soda",
-    engineVersion : VK_MAKE_VERSION(1, 0, 0),
-    apiVersion : VK_API_VERSION_1_0,
+    .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+    .pNext = NULL,
+    .pApplicationName = "renderer/vulkan",
+    .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+    .pEngineName = "soda",
+    .engineVersion = VK_MAKE_VERSION(1, 0, 0),
+    .apiVersion = VK_API_VERSION_1_0,
   };
 
   bool debug = true;
   VkInstanceCreateInfo createInfo = {
-    sType : VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-    pNext : (debug) ? &DEBUG_UTILS_CREATE_INFO : NULL,
-    flags : 0,
-    pApplicationInfo : &appInfo,
-    enabledLayerCount : instance.requires.layers.count,
-    ppEnabledLayerNames : instance.requires.layers.data,
-    enabledExtensionCount : instance.requires.extensions.count,
-    ppEnabledExtensionNames : instance.requires.extensions.data
+    .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+    .pNext = (debug) ? &DEBUG_UTILS_CREATE_INFO : NULL,
+    .flags = 0,
+    .pApplicationInfo = &appInfo,
+    .enabledLayerCount = instance.requires.layers.count,
+    .ppEnabledLayerNames = instance.requires.layers.data,
+    .enabledExtensionCount = instance.requires.extensions.count,
+    .ppEnabledExtensionNames = instance.requires.extensions.data
   };
 
   if (vkCreateInstance(&createInfo, NULL, &instance.instance) != VK_SUCCESS) Panic("renderer/vulkan: failed to create VkInstance\n");

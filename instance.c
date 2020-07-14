@@ -1,7 +1,5 @@
-#include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 
 #define GLFW_INCLUDE_VULKAN
@@ -14,6 +12,7 @@
 
 #include "instance.h"
 #include "devices.h"
+#include "panic.h"
 
 /* types */
 
@@ -58,35 +57,14 @@ const char *RENDERER_DEBUG_LAYERS[] = {
 	"VK_LAYER_KHRONOS_validation"
 };
 
+RequiredProperties EmptyRequiredProperties = {
+	/* An empty RequiredProperties struct. Use this if we want to toggle
+	the RequiredProperties off */
+	.count = 0,
+	.data = NULL,
+};
+
 /* code */
-
-static void Panic(const char *format, ...) {
-	/* Prints an error message and then closes the app */
-	va_list args;
-	va_start(args, format);
-
-	vfprintf(stderr, format, args);
-
-	va_end(args);
-	abort();
-}
-
-static PhysicalDevices CreatePhysicalDevices(VkInstance instance) {
-	uint32_t count;
-	vkEnumeratePhysicalDevices(instance, &count, NULL);
-
-	if (!count) Panic("Unabled to find PhysicalDevices with Vulkan support\n");
-
-	VkPhysicalDevice *devices = calloc(count, sizeof(VkPhysicalDevice));
-	if (!devices) Panic("Unable to allocate VkPhysicalDevice array\n");
-
-	vkEnumeratePhysicalDevices(instance, &count, devices);
-
-	return (PhysicalDevices) {
-		.count = count,
-		.devices = devices,
-	};
-}
 
 static RequiredProperties GetGlfwRequiredProperties() {
 	/* Returns the Extensions required by GLFW */
@@ -99,7 +77,7 @@ static RequiredProperties GetGlfwRequiredProperties() {
 RequiredProperties GetSDLRequiredProperties(SDL_Window *window) {
 	/* Returns the Extensions required by GLFW */
 
-	uint32_t count;
+	uint32_t count = 0;
 	SDL_Vulkan_GetInstanceExtensions(window, &count, NULL);
 
 	const char **data = calloc(count, sizeof(const char *));
@@ -112,14 +90,6 @@ RequiredProperties GetSDLRequiredProperties(SDL_Window *window) {
 		.data = data,
 	};
 }
-
-RequiredProperties EmptyRequiredProperties = {
-	/* An empty RequiredProperties struct. Use this if we want to toggle
-	the RequiredProperties off */
-	.count = 0,
-	.data = NULL,
-};
-
 
 static RequiredProperties GetRendererRequiredLayers(bool debug) {
 	/* Return the required extensions for the Renderer (i.e. this app) */
@@ -335,7 +305,6 @@ Instance CreateInstance(RequiredProperties required_extensions) {
 	instance.requires.layers = GetRequiredLayers();
 	ValidateRequiredLayers(instance);
 
-
 	VkApplicationInfo appInfo = {
 		.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 		.pNext = NULL,
@@ -362,17 +331,20 @@ Instance CreateInstance(RequiredProperties required_extensions) {
 
 	instance.debug_messenger = CreateDebugMessenger(instance.instance);
 
+	instance.devices = GetDevices(instance.instance);
+
 	return instance;
 }
 
 void DestroyInstance(Instance instance) {
 	/* Deallocates an Instance */
+	instance.devices = DestroyDevices(instance.devices);
+
 	DestroyRequiredProperties(instance.requires.extensions);
 	DestroyRequiredProperties(instance.requires.layers);
 	DestroyDebugMessenger(instance);
 	vkDestroyInstance(instance.instance, NULL);
 }
-
 
 Instance CreateGlfwInstance() {
 	/* Uses the GLFW library to create a Window with a Vulkan instance */
@@ -383,7 +355,7 @@ Instance CreateGlfwInstance() {
 
 	GLFWwindow* window = glfwCreateWindow(800, 600, "soda: GLFW/Vulkan", NULL, NULL);
 	RequiredProperties sources[] = {
-        GetRendererRequiredProperties(true),
+		GetRendererRequiredProperties(true),
 		GetGlfwRequiredProperties(),
 	 };
 
@@ -408,14 +380,14 @@ void DestroyGlfwInstance(Instance instance) {
 
 Instance CreateSDLInstance() {
 	/* Uses the SDL library to create a Window with a Vulkan instance */
-    if(SDL_Init(SDL_INIT_VIDEO))
-        Panic("renderer/vulkan: failed to SDL_Init");
+  if(SDL_Init(SDL_INIT_VIDEO))
+  	Panic("renderer/vulkan: failed to SDL_Init");
 
 	SDL_Window *window = SDL_CreateWindow("soda: SDL/Vulkan", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 800, 600, SDL_WINDOW_SHOWN | SDL_WINDOW_VULKAN);
 
-    RequiredProperties properties = GetSDLRequiredProperties(window);
+  RequiredProperties properties = GetSDLRequiredProperties(window);
 	RequiredProperties sources[] = {
-        GetRendererRequiredProperties(true),
+		GetRendererRequiredProperties(true),
 		properties,
 	 };
 
@@ -423,14 +395,13 @@ Instance CreateSDLInstance() {
 	uint32_t total = GetTotalRequiredProperties(sources, elems);
 
 	RequiredProperties required_extensions = CreateRequiredProperties(sources, elems, total);
-    Instance instance = CreateInstance(required_extensions);
-    instance.sdl.window = window;
+  Instance instance = CreateInstance(required_extensions);
+  instance.sdl.window = window;
 
-    free(properties.data);
+  free(properties.data);
 
-    if (!SDL_Vulkan_CreateSurface(window, instance.instance, &instance.surface))
-        Panic("renderer/vulkan: failed to SDL_Vulkan_CreateSurface");
+  if (!SDL_Vulkan_CreateSurface(window, instance.instance, &instance.surface))
+		Panic("renderer/vulkan: failed to SDL_Vulkan_CreateSurface");
 
-    return instance;
+  return instance;
 }
-

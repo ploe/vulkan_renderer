@@ -53,7 +53,7 @@ typedef struct {
 	InstanceRequires requires;
 	InstanceSupports supports;
 
-	PhysicalDevices physical;
+	Devices devices;
 	union {
 		struct {
 			GLFWwindow *window;

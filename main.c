@@ -2,7 +2,6 @@
 
 int main(int argc, char *argv[]) {
     Instance instance = CreateSDLInstance();
-    //DestroyGlfwInstance(instance);
 
     while (1) {
         SDL_Event e;
@@ -15,6 +14,8 @@ int main(int argc, char *argv[]) {
 		    }
 	    }
     }
+
+  DestroySDLInstance(&instance);
 
 	return 0;
 }

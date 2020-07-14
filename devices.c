@@ -4,6 +4,21 @@
 #include "devices.h"
 #include "panic.h"
 
+static void GetQueueFamiliesProperties(Device *device) {
+  uint32_t count = 0;
+  vkGetPhysicalDeviceQueueFamilyProperties(device->device, &count, NULL);
+
+  VkQueueFamilyProperties *properties = calloc(count, sizeof(VkQueueFamilyProperties));
+
+  if (!properties)
+    Panic("devices/GetQueueFamiliesProperties: Unable to allocate VkPhysicalDevice array");
+
+  vkGetPhysicalDeviceQueueFamilyProperties(device->device, &count, properties);
+
+  device->queue_families.count = count;
+  device->queue_families.properties = properties;
+}
+
 Devices GetDevices(VkInstance instance) {
   /* Populates an array of Devices with their features and properties */
   uint32_t count = 0;
@@ -29,6 +44,7 @@ Devices GetDevices(VkInstance instance) {
 
     vkGetPhysicalDeviceProperties(device->device, &device->properties);
     vkGetPhysicalDeviceFeatures(device->device, &device->features);
+    GetQueueFamiliesProperties(device);
   }
 
   free(vulkan_devices);

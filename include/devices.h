@@ -1,12 +1,21 @@
 #ifndef _SODA_DEVICES_H
 #define _SODA_DEVICES_H
 
+/* types */
+
 typedef struct {
   /* Device is a struct that collates the attributes pertaining to a
   VkPhysicalDevice */
   VkPhysicalDevice device;
   VkPhysicalDeviceProperties properties;
   VkPhysicalDeviceFeatures features;
+
+  struct {
+    /* Namespace for VkQueueFamilyProperties */
+    uint32_t count;
+    VkQueueFamilyProperties *properties;
+  } queue_families;
+
 } Device;
 
 typedef struct {
@@ -15,7 +24,9 @@ typedef struct {
   Device *devices;
 } Devices;
 
-Devices GetDevices(VkInstance instance);
-Devices DestroyDevices(Devices devices);
+/* methods */
+
+Devices GetDevices(VkInstance);
+Devices DestroyDevices(Devices);
 
 #endif

@@ -34,44 +34,37 @@ typedef struct {
 } RequiredProperties;
 
 typedef struct {
-	/* Instance namespace for the layers and extensions supported by Vulkan */
-	ExtensionProperties extensions;
-	LayerProperties layers;
-} InstanceSupports;
-
-typedef struct {
-	/* Instance namespace for the layers and extensions required by Vulkan */
-	RequiredProperties extensions, layers;
-} InstanceRequires;
-
-typedef struct {
 	/* Instance is wrapper for the VkInstance and its related state */
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debug_messenger;
 	VkSurfaceKHR surface;
 
-	InstanceRequires requires;
-	InstanceSupports supports;
+	struct {
+		/* Namespace for the layers and extensions required by Vulkan */
+	 RequiredProperties extensions, layers;
+ 	} requires;
+
+	struct {
+		/* Namespace for the layers and extensions supported by Vulkan */
+		ExtensionProperties extensions;
+		LayerProperties layers;
+	} supports;
 
 	Devices devices;
-	union {
-		struct {
-			GLFWwindow *window;
-		} glfw;
-		struct {
-			SDL_Window *window;
-		} sdl;
-	};
+
+	struct {
+		/* Namespace for SDL related data and attributes */
+		SDL_Window *window;
+	} sdl;
 
 } Instance;
 
-Instance CreateInstance();
-void DestroyInstance(Instance);
+/* methods */
 
-Instance CreateGlfwInstance();
-void DestroyGlfwInstance(Instance instance);
+Instance CreateInstance();
+void DestroyInstance(Instance *);
 
 Instance CreateSDLInstance();
-//void DestroySDLInstance(Instance instance);
+void DestroySDLInstance(Instance *);
 
 #endif

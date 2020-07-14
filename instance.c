@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
@@ -285,12 +282,12 @@ static VkDebugUtilsMessengerEXT CreateDebugMessenger(VkInstance instance) {
 	return debug_messenger;
 }
 
-static void DestroyDebugMessenger(Instance instance) {
+static void DestroyDebugMessenger(Instance *instance) {
 	/* Destroy the VkDebugUtilsMessengerEXT */
-	PFN_vkDestroyDebugUtilsMessengerEXT destroy = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance.instance, "vkDestroyDebugUtilsMessengerEXT");
+	PFN_vkDestroyDebugUtilsMessengerEXT destroy = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance->instance, "vkDestroyDebugUtilsMessengerEXT");
 	if (!destroy) return;
 
-	destroy(instance.instance, instance.debug_messenger, NULL);
+	destroy(instance->instance, instance->debug_messenger, NULL);
 }
 
 Instance CreateInstance(RequiredProperties required_extensions) {
@@ -336,46 +333,14 @@ Instance CreateInstance(RequiredProperties required_extensions) {
 	return instance;
 }
 
-void DestroyInstance(Instance instance) {
+void DestroyInstance(Instance *instance) {
 	/* Deallocates an Instance */
-	instance.devices = DestroyDevices(instance.devices);
+	instance->devices = DestroyDevices(instance->devices);
 
-	DestroyRequiredProperties(instance.requires.extensions);
-	DestroyRequiredProperties(instance.requires.layers);
+	DestroyRequiredProperties(instance->requires.extensions);
+	DestroyRequiredProperties(instance->requires.layers);
 	DestroyDebugMessenger(instance);
-	vkDestroyInstance(instance.instance, NULL);
-}
-
-Instance CreateGlfwInstance() {
-	/* Uses the GLFW library to create a Window with a Vulkan instance */
-	glfwInit();
-
-	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-	glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-	GLFWwindow* window = glfwCreateWindow(800, 600, "soda: GLFW/Vulkan", NULL, NULL);
-	RequiredProperties sources[] = {
-		GetRendererRequiredProperties(true),
-		GetGlfwRequiredProperties(),
-	 };
-
-	size_t elems = ARRAY_SIZE(sources, RequiredProperties);
-	uint32_t total = GetTotalRequiredProperties(sources, elems);
-
-	RequiredProperties required_extensions = CreateRequiredProperties(sources, elems, total);
-
-	Instance instance = CreateInstance(required_extensions);
-	instance.glfw.window = window;
-
-	return instance;
-}
-
-void DestroyGlfwInstance(Instance instance) {
-    /* Destroys an Instance using the GLFW library */
-	DestroyInstance(instance);
-
-	glfwDestroyWindow(instance.glfw.window);
-	glfwTerminate();
+	vkDestroyInstance(instance->instance, NULL);
 }
 
 Instance CreateSDLInstance() {
@@ -404,4 +369,12 @@ Instance CreateSDLInstance() {
 		Panic("renderer/vulkan: failed to SDL_Vulkan_CreateSurface");
 
   return instance;
+}
+
+void DestroySDLInstance(Instance *instance) {
+	/* Destroys an Instance using the SDL library */
+	SDL_DestroyWindow(instance->sdl.window);
+	instance->sdl.window = NULL;
+
+	DestroyInstance(instance);
 }

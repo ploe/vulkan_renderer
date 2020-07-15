@@ -50,7 +50,7 @@ typedef struct {
 		LayerProperties layers;
 	} supports;
 
-	Devices devices;
+	PhysicalDevices physical_devices;
 
 	struct {
 		/* Namespace for SDL related data and attributes */

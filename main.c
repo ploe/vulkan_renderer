@@ -1,10 +1,10 @@
 #include "instance.h"
 
-Device *PickDevice(Devices);
+PhysicalDevice *PickPhysicalDevice(PhysicalDevices);
 
 int main(int argc, char *argv[]) {
     Instance instance = CreateSDLInstance();
-    PickDevice(instance.devices);
+    PickPhysicalDevice(instance.physical_devices);
     while (1) {
         SDL_Event e;
 

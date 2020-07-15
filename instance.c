@@ -328,14 +328,14 @@ Instance CreateInstance(RequiredProperties required_extensions) {
 
 	instance.debug_messenger = CreateDebugMessenger(instance.instance);
 
-	instance.devices = GetDevices(instance.instance);
+	instance.physical_devices = GetPhysicalDevices(instance.instance);
 
 	return instance;
 }
 
 void DestroyInstance(Instance *instance) {
 	/* Deallocates an Instance */
-	instance->devices = DestroyDevices(instance->devices);
+	instance->physical_devices = DestroyPhysicalDevices(instance->physical_devices);
 
 	DestroyRequiredProperties(instance->requires.extensions);
 	DestroyRequiredProperties(instance->requires.layers);

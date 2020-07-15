@@ -8,9 +8,9 @@
 /* types */
 
 typedef struct {
-  /* Device is a struct that collates the attributes pertaining to a
+  /* PhysicalDevice is a struct that collates the attributes pertaining to a
   VkPhysicalDevice */
-  VkPhysicalDevice device;
+  VkPhysicalDevice physical_device;
   VkPhysicalDeviceProperties properties;
   VkPhysicalDeviceFeatures features;
 
@@ -20,17 +20,17 @@ typedef struct {
     VkQueueFamilyProperties *properties;
   } queue_families;
 
-} Device;
+} PhysicalDevice;
 
 typedef struct {
-  /* Devices is a container for an array of Device structs */
+  /* PhysicalDevices is a container for an array of PhysicalDevice structs */
   uint32_t count;
-  Device *devices;
-} Devices;
+  PhysicalDevice *physical_devices;
+} PhysicalDevices;
 
 /* methods */
 
-Devices GetDevices(VkInstance);
-Devices DestroyDevices(Devices);
+PhysicalDevices GetPhysicalDevices(VkInstance);
+PhysicalDevices DestroyPhysicalDevices(PhysicalDevices);
 
 #endif

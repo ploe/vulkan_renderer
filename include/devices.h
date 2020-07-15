@@ -1,6 +1,10 @@
 #ifndef _SODA_DEVICES_H
 #define _SODA_DEVICES_H
 
+/* constants */
+
+#define QUEUE_FAMILY_NOT_FOUND -1
+
 /* types */
 
 typedef struct {
@@ -12,7 +16,7 @@ typedef struct {
 
   struct {
     /* Namespace for VkQueueFamilyProperties */
-    uint32_t count;
+    uint32_t count, selected;
     VkQueueFamilyProperties *properties;
   } queue_families;
 

@@ -40,7 +40,7 @@ Devices GetDevices(VkInstance instance) {
   for (i = 0; i < count; i++) {
     Device *device = &soda_devices[i];
 
-    device->device = vulkan_devices[i],
+    device->device = vulkan_devices[i];
 
     vkGetPhysicalDeviceProperties(device->device, &device->properties);
     vkGetPhysicalDeviceFeatures(device->device, &device->features);
@@ -55,6 +55,16 @@ Devices GetDevices(VkInstance instance) {
   };
 }
 
+int GetValidQueueFamily(Device *device) {
+  int i;
+  for (i = 0; i < device->queue_families.count; i++) {
+    if (device->queue_families.properties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+      return device->queue_families.selected = i;
+  }
+
+  return device->queue_families.selected = QUEUE_FAMILY_NOT_FOUND;
+}
+
 Devices DestroyDevices(Devices devices) {
   /* Deallocates devices and returns an empty Devices container */
   if (devices.devices) free(devices.devices);
@@ -63,4 +73,18 @@ Devices DestroyDevices(Devices devices) {
     .count = 0,
     .devices = NULL,
   };
+}
+
+Device *PickDevice(Devices devices) {
+  uint32_t i;
+  for (i = 0; i < devices.count; i++) {
+    Device *device = &(devices.devices[i]);
+    uint32_t family = GetValidQueueFamily(device);
+
+    if (family == QUEUE_FAMILY_NOT_FOUND) continue;
+
+    printf("device: %s, family: %d\n", device->properties.deviceName, family);
+  }
+
+  return NULL;
 }

@@ -91,3 +91,49 @@ PhysicalDevice *PickPhysicalDevice(PhysicalDevices physical_devices) {
 
   return NULL;
 }
+
+static VkDeviceQueueCreateInfo devicequeueCreateInfos[]
+
+VkDevice CreateLogicalDevice(PhysicalDevice *physical_device) {
+  float priorities[] = {1.0f};
+
+  VkDeviceQueueCreateInfo queue_create_infos[] = {
+    {
+      .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+      .pNext = NULL,
+      .flags = 0,
+      .queueFamilyIndex = device.queue_families.graphics,
+      .queueCount = ARRAY_SIZE(priorities),
+      .pQueuePriorities = priorities,
+    },
+  };
+
+  VkPhysicalDeviceFeatures enabled_features = 0;
+
+  VkDeviceCreateInfo device_create_info = {
+    .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+    .pNext = NULL,
+    .flags = 0,
+    .queueCreateInfoCount = ARRAY_SIZE(queue_create_infos),
+    .pQueueCreateInfos = queue_create_infos,
+    .enabledLayerCount = 0, /* deprecated and ignored */
+    .ppEnabledLayerNames = NULL, //deprecated and ignored
+    .enabledExtensionCount = 0,
+    .ppEnabledExtensionNames = NULL,
+    .pEnabledFeatures &enabled_features,
+  };
+
+  VkDevice logical_device;
+  VkResult created = vkCreateDevice(
+    physical_device.physical_device,
+    &device_create_info,
+    NULL,
+    &logical_device
+  );
+
+  if (created != VK_SUCCESS)
+    Panic("devices/CreateQueue: Failed to vkCreateDevice");
+
+  return logical_device;
+
+}

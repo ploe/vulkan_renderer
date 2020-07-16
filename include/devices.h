@@ -23,6 +23,12 @@ typedef struct {
 } PhysicalDevice;
 
 typedef struct {
+  struct {
+    VkDevice device;
+  } vk;
+} LogicalDevice;
+
+typedef struct {
   /* PhysicalDevices is a container for an array of PhysicalDevice structs */
   uint32_t count;
   PhysicalDevice *physical_devices;
@@ -32,5 +38,6 @@ typedef struct {
 
 PhysicalDevices GetPhysicalDevices(VkInstance);
 PhysicalDevices DestroyPhysicalDevices(PhysicalDevices);
+VkDevice CreateLogicalDevice(PhysicalDevice);
 
 #endif

@@ -22,7 +22,7 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessengerCallback();
 
 /* macros */
 
-#define ARRAY_SIZE(array, type) (sizeof(array) / sizeof(type))
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
 /* data */
 
@@ -93,7 +93,7 @@ static RequiredProperties GetRendererRequiredLayers(bool debug) {
 	if (!debug) return EmptyRequiredProperties;
 
 	return (RequiredProperties) {
-		.count = ARRAY_SIZE(RENDERER_DEBUG_LAYERS, const char *),
+		.count = ARRAY_SIZE(RENDERER_DEBUG_LAYERS),
 		.data = RENDERER_DEBUG_LAYERS
 	};
 }
@@ -103,7 +103,7 @@ RequiredProperties GetRendererRequiredProperties(bool debug) {
 		if (!debug) return EmptyRequiredProperties;
 
 		return (RequiredProperties) {
-			.count = ARRAY_SIZE(RENDERER_DEBUG_EXTENSIONS, const char *),
+			.count = ARRAY_SIZE(RENDERER_DEBUG_EXTENSIONS),
 			.data = RENDERER_DEBUG_EXTENSIONS
 		};
 }
@@ -161,7 +161,7 @@ static RequiredProperties GetRequiredExtensions() {
 		GetGlfwRequiredProperties(),
 	};
 
-	size_t elems = ARRAY_SIZE(sources, RequiredProperties);
+	size_t elems = ARRAY_SIZE(sources);
 	uint32_t total = GetTotalRequiredProperties(sources, elems);
 
 	return CreateRequiredProperties(sources, elems, total);
@@ -172,7 +172,7 @@ static RequiredProperties GetRequiredLayers() {
 		GetRendererRequiredLayers(true)
 	};
 
-	size_t elems = ARRAY_SIZE(sources, RequiredProperties);
+	size_t elems = ARRAY_SIZE(sources);
 	uint32_t total = GetTotalRequiredProperties(sources, elems);
 
 	return CreateRequiredProperties(sources, elems, total);
@@ -356,7 +356,7 @@ Instance CreateSDLInstance() {
 		properties,
 	 };
 
-	size_t elems = ARRAY_SIZE(sources, RequiredProperties);
+	size_t elems = ARRAY_SIZE(sources);
 	uint32_t total = GetTotalRequiredProperties(sources, elems);
 
 	RequiredProperties required_extensions = CreateRequiredProperties(sources, elems, total);

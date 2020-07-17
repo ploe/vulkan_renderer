@@ -5,6 +5,10 @@
 
 #define QUEUE_FAMILY_NOT_FOUND -1
 
+/* macros */
+
+#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
+
 /* types */
 
 typedef struct {
@@ -38,6 +42,7 @@ typedef struct {
 
 PhysicalDevices GetPhysicalDevices(VkInstance);
 PhysicalDevices DestroyPhysicalDevices(PhysicalDevices);
-VkDevice CreateLogicalDevice(PhysicalDevice);
+VkDevice CreateLogicalDevice(PhysicalDevice *);
+PhysicalDevice *PickPhysicalDevice(PhysicalDevices);
 
 #endif

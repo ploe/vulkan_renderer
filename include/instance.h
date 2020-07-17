@@ -38,6 +38,11 @@ typedef struct {
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debug_messenger;
 	VkSurfaceKHR surface;
+	VkDevice logical_device;
+
+	struct {
+		VkQueue graphics;
+	} queues;
 
 	struct {
 		/* Namespace for the layers and extensions required by Vulkan */

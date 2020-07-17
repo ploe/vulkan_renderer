@@ -20,10 +20,6 @@ typedef bool (*ValidatePropertyNameMethod)(Instance, const char *);
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL DebugMessengerCallback();
 
-/* macros */
-
-#define ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
-
 /* data */
 
 VkDebugUtilsMessengerCreateInfoEXT DEBUG_UTILS_CREATE_INFO = {
@@ -329,6 +325,11 @@ Instance CreateInstance(RequiredProperties required_extensions) {
 	instance.debug_messenger = CreateDebugMessenger(instance.instance);
 
 	instance.physical_devices = GetPhysicalDevices(instance.instance);
+
+	PhysicalDevice *physical_device = PickPhysicalDevice(instance.physical_devices);
+	instance.logical_device = CreateLogicalDevice(physical_device);
+
+	vkGetDeviceQueue(instance.logical_device, physical_device->queue_families.selected, 0, &instance.queues.graphics);;
 
 	return instance;
 }

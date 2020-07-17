@@ -92,8 +92,6 @@ PhysicalDevice *PickPhysicalDevice(PhysicalDevices physical_devices) {
   return NULL;
 }
 
-static VkDeviceQueueCreateInfo devicequeueCreateInfos[]
-
 VkDevice CreateLogicalDevice(PhysicalDevice *physical_device) {
   float priorities[] = {1.0f};
 
@@ -102,13 +100,13 @@ VkDevice CreateLogicalDevice(PhysicalDevice *physical_device) {
       .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
       .pNext = NULL,
       .flags = 0,
-      .queueFamilyIndex = device.queue_families.graphics,
+      .queueFamilyIndex = physical_device->queue_families.selected,
       .queueCount = ARRAY_SIZE(priorities),
       .pQueuePriorities = priorities,
     },
   };
 
-  VkPhysicalDeviceFeatures enabled_features = 0;
+  VkPhysicalDeviceFeatures enabled_features = {};
 
   VkDeviceCreateInfo device_create_info = {
     .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -120,12 +118,12 @@ VkDevice CreateLogicalDevice(PhysicalDevice *physical_device) {
     .ppEnabledLayerNames = NULL, //deprecated and ignored
     .enabledExtensionCount = 0,
     .ppEnabledExtensionNames = NULL,
-    .pEnabledFeatures &enabled_features,
+    .pEnabledFeatures = &enabled_features,
   };
 
   VkDevice logical_device;
   VkResult created = vkCreateDevice(
-    physical_device.physical_device,
+    physical_device->physical_device,
     &device_create_info,
     NULL,
     &logical_device

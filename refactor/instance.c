@@ -39,6 +39,11 @@ static struct vk {
   /* instance_extensions is a namespace for the required Vulkan Instance
   Extensions */
   InstanceExtensions instance_extensions;
+
+  struct {
+    /* debug_utils is a namespace containing VkDebugUtils */
+    VkDebugUtilsMessengerEXT *messenger;
+  } debug_utils;
 } vk;
 
 /* constants */
@@ -58,14 +63,28 @@ typedef struct Environment {
   prod,  etc. */
   InstanceExtensions instance_extensions;
   ValidationLayers validation_layers;
-  struct debug_utils {
+  struct {
     struct messenger {
-      VkDebugUtilsMessengerCreateInfoEXT create_info;
+      VkDebugUtilsMessengerCreateInfoEXT *create_info;
     } messenger;
   } debug_utils;
 } Environment;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL devDebugUtilsMessenger();
+
+VkDebugUtilsMessengerCreateInfoEXT DEBUG_UTILS_MESSENGER_CREATE_INFO = {
+  .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+  .messageSeverity =
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+  .messageType =
+    VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+    VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+  .pfnUserCallback = devDebugUtilsMessenger,
+};
 
 static Environment dev = {
   /* The dev Environment includes layers and extensions required for debugging
@@ -79,19 +98,7 @@ static Environment dev = {
     .count = ARRAY_SIZE(DEV_VALIDATION_LAYERS),
   },
 
-  .debug_utils.messenger.create_info = {
- 		.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
- 		.messageSeverity =
- 			VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT |
- 			VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT |
- 			VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
- 			VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
- 		.messageType =
- 			VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
- 			VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
- 			VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
- 		.pfnUserCallback = devDebugUtilsMessenger,
- },
+  .debug_utils.messenger.create_info = &DEBUG_UTILS_MESSENGER_CREATE_INFO,
 };
 
 /* The prod Environment excludes layers and extensions for debugging Vulkan */
@@ -127,10 +134,6 @@ static struct sdl initSDL() {
 
   SDL_Vulkan_GetInstanceExtensions(window, &count, names);
 
-  int i;
-  for (i = 0; i < count; i++)
-    puts(names[i]);
-
   return (struct sdl) {
     .instance_extensions = {
         .count = count,
@@ -149,18 +152,22 @@ static void destroySDL() {
   sdl = (struct sdl) {};
 }
 
-static void setVkExtensionProperties() {
+static VkExtensionProperties *getVkExtensionProperties(uint32_t count) {
 	/* Set the supported VkExtensionProperties in vk.extension namespace */
-	uint32_t count = 0;
-	vkEnumerateInstanceExtensionProperties(NULL, &count, NULL);
-
 	VkExtensionProperties *properties = calloc(count, sizeof(VkExtensionProperties));
 	if (!properties) Panic("getExtensionsProperties: unable to allocate VkExtensionProperties");
 
   vkEnumerateInstanceExtensionProperties(NULL, &count, properties);
 
-  vk.extension_properties.count = count;
-  vk.extension_properties.properties = properties;
+  return properties;
+}
+
+static uint32_t countVkExtensionProperties() {
+	/* Count the supported VkExtensionProperties in vk.extension namespace */
+	uint32_t count = 0;
+	vkEnumerateInstanceExtensionProperties(NULL, &count, NULL);
+
+  return count;
 }
 
 static void destroyVkExtensionProperties () {
@@ -210,7 +217,6 @@ static InstanceExtensions setVkInstanceExtensions(Environment *environment) {
   uint32_t i;
   for (i = 0; i < ARRAY_SIZE(sources); i++) {
     InstanceExtensions *source = &(sources[i]);
-    printf("count: %d\n", source->count);
 
     size_t size = source->count * sizeof(const char *);
     memcpy(dst, source->names, size);
@@ -231,22 +237,59 @@ static InstanceExtensions setVkInstanceExtensions(Environment *environment) {
   };
 }
 
+static VkDebugUtilsMessengerEXT *createDebugUtilsMessenger(VkDebugUtilsMessengerCreateInfoEXT *create_info) {
+  /* Initialise and return VkDebugUtilsMessengerEXT if create_info is set */
+  if (!create_info) return NULL;
+
+  PFN_vkCreateDebugUtilsMessengerEXT create =
+    (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(vk.instance, "vkCreateDebugUtilsMessengerEXT");
+
+  if (!create)
+    Panic("initDebugUtilsMessenger: unable to get vkCreateDebugUtilsMessengerEXT\n");
+
+  VkDebugUtilsMessengerEXT *messenger = calloc(1, sizeof(VkDebugUtilsMessengerEXT));
+  if (!messenger)
+    Panic("initDebugUtilsMessenger: unable to allocate 'messenger'\n");
+
+  create(vk.instance, create_info, NULL, messenger);
+
+  return messenger;
+}
+
+static VkDebugUtilsMessengerEXT *destroyDebugUtilsMessenger(VkDebugUtilsMessengerEXT *messenger) {
+  /* Free and unset messenger */
+  PFN_vkDestroyDebugUtilsMessengerEXT destroy =
+    (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(vk.instance, "vkDestroyDebugUtilsMessengerEXT");
+
+  if (!destroy)
+    Panic("initDebugUtilsMessenger: unable to get vkDestroyDebugUtilsMessengerEXT\n");
+
+  destroy(vk.instance, *messenger, NULL);
+  free(messenger);
+
+  return NULL;
+}
+
 void CreateRenderer() {
 	/* Creates the VkInstance and get the rest of the Vulkan's state */
 
   Environment *environment = &dev;
+
+  sdl = initSDL();
+
+  vk.extension_properties.count = countVkExtensionProperties();
+  vk.extension_properties.properties = getVkExtensionProperties(vk.extension_properties.count);
+
+  vk.instance_extensions = setVkInstanceExtensions(environment);
+
 	VkApplicationInfo application_info = {
 		.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
 		.pApplicationName = "soda/vulkan",
 		.applicationVersion = VK_MAKE_VERSION(1, 0, 0),
 		.pEngineName = "soda",
 		.engineVersion = VK_MAKE_VERSION(1, 0, 0),
-		.apiVersion = VK_API_VERSION_1_0,
+		.apiVersion = VK_API_VERSION_1_2,
 	};
-
-  sdl = initSDL();
-  setVkExtensionProperties();
-  vk.instance_extensions = setVkInstanceExtensions(environment);
 
 	VkInstanceCreateInfo create_info = {
 		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
@@ -261,5 +304,7 @@ void CreateRenderer() {
 
   if (result != VK_SUCCESS)
     Panic("CreateInstance: failed to create VkInstance\n");
+
+  vk.debug_utils.messenger = createDebugUtilsMessenger(environment->debug_utils.messenger.create_info);
 
 }

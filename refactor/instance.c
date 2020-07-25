@@ -19,6 +19,34 @@ typedef struct {
 /* Container for required Vulkan Validation Layers */
 typedef InstanceExtensions ValidationLayers;
 
+typedef struct {
+	/* Type that describes the settings required for an environment e.g. dev,
+	prod,	etc. */
+	InstanceExtensions instance_extensions;
+	ValidationLayers validation_layers;
+	struct {
+		struct messenger {
+			VkDebugUtilsMessengerCreateInfoEXT *create_info;
+		} messenger;
+	} debug_utils;
+} Environment;
+
+typedef struct {
+  /* Type that keeps the device related attributes together */
+  struct {
+    /* Container for VkPhysicalDevice attributes */
+    VkPhysicalDevice device;
+  } physical;
+  struct {
+    /* Container for VkDevice attributes */
+    VkDevice device;
+  } logical;
+  struct {
+    /* Container for the VkQueue */
+    VkQueue graphics;
+  } queue;
+} Device;
+
 /* namespaces */
 
 static struct sdl {
@@ -44,6 +72,8 @@ static struct vk {
 		/* debug_utils is a namespace containing VkDebugUtils */
 		VkDebugUtilsMessengerEXT *messenger;
 	} debug_utils;
+
+  Device *devices;
 } vk;
 
 /* constants */
@@ -57,18 +87,6 @@ static const char *DEV_VALIDATION_LAYERS[] = {
 	/* These are the required layers when debug mode is enabled */
 	"VK_LAYER_KHRONOS_validation"
 };
-
-typedef struct Environment {
-	/* Type that describes the settings required for an environment e.g. dev,
-	prod,	etc. */
-	InstanceExtensions instance_extensions;
-	ValidationLayers validation_layers;
-	struct {
-		struct messenger {
-			VkDebugUtilsMessengerCreateInfoEXT *create_info;
-		} messenger;
-	} debug_utils;
-} Environment;
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL devDebugUtilsMessenger();
 
@@ -270,6 +288,28 @@ static VkDebugUtilsMessengerEXT *destroyDebugUtilsMessenger(VkDebugUtilsMessenge
 	return NULL;
 }
 
+static uint32_t countVkPhysicalDevices() {
+  /* Counts the VkPhysicalDevice */
+  uint32_t count = 0;
+  vkEnumeratePhysicalDevices(vk.instance, &count, NULL);
+
+  return count;
+}
+
+static VkPhysicalDevice *getVkPhysicalDevices(uint32_t count) {
+  /* Allocate and return VkPhysicalDevice array */
+  VkPhysicalDevices *devices = calloc(count, sizeof(VkPysicalDevice));
+
+  if (!devices)
+    Panic("getVkPhysicalDevices: unable to allocate VkPhysicalDevice array\n");
+
+  vkEnumeratePhysicalDevices(vk.instance, &count, devices);
+
+  return devices;
+}
+
+Device *create
+
 void CreateRenderer() {
 	/* Creates the VkInstance and get the rest of the Vulkan's state */
 
@@ -292,7 +332,7 @@ void CreateRenderer() {
 	};
 
 	VkInstanceCreateInfo create_info = {
-    .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+		.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
 		.pNext = environment->debug_utils.messenger.create_info,
 		.pApplicationInfo = &application_info,
 		.enabledLayerCount = environment->validation_layers.count,

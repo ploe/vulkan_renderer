@@ -320,7 +320,7 @@ Instance CreateInstance(RequiredProperties required_extensions) {
 		.ppEnabledExtensionNames = instance.requires.extensions.data
 	};
 
-	return instance; 
+	return instance;
 	if (vkCreateInstance(&createInfo, NULL, &instance.instance) != VK_SUCCESS) Panic("renderer/vulkan: failed to create VkInstance\n");
 
 	instance.debug_messenger = CreateDebugMessenger(instance.instance);

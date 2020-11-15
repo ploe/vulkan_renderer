@@ -36,6 +36,12 @@ typedef struct {
   struct {
     /* Container for VkPhysicalDevice attributes */
     VkPhysicalDevice device;
+		VkPhysicalDeviceProperties properties;
+		VkPhysicalDeviceFeatures features;
+		struct {
+			uint32_t count;
+			VkQueueFamilyProperties *properties;
+		} queue_family;
   } physical;
   struct {
     /* Container for VkDevice attributes */
@@ -298,7 +304,7 @@ static uint32_t countVkPhysicalDevices() {
 
 static VkPhysicalDevice *getVkPhysicalDevices(uint32_t count) {
   /* Allocate and return VkPhysicalDevice array */
-  VkPhysicalDevices *devices = calloc(count, sizeof(VkPysicalDevice));
+  VkPhysicalDevice *devices = calloc(count, sizeof(VkPhysicalDevice));
 
   if (!devices)
     Panic("getVkPhysicalDevices: unable to allocate VkPhysicalDevice array\n");
@@ -308,12 +314,58 @@ static VkPhysicalDevice *getVkPhysicalDevices(uint32_t count) {
   return devices;
 }
 
-Device *create
+static uint32_t countQueueFamilyProperties(VkPhysicalDevice physical_device) {
+  /* Counts the VkPhysicalDeviceQueueFamilyProperties */
+  uint32_t count = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, NULL);
+
+  return count;
+}
+
+static VkQueueFamilyProperties *getQueueFamiliesProperties(VkPhysicalDevice physical_device, uint32_t count) {
+  /* Allocate and return VkQueueFamilyProperties array */
+  VkQueueFamilyProperties *properties = calloc(count, sizeof(VkQueueFamilyProperties));
+
+  if (!properties)
+    Panic("getQueueFamiliesProperties: unable to allocate VkQueueFamilyProperties array\n");
+
+  vkGetPhysicalDeviceQueueFamilyProperties(physical_device, &count, properties);
+
+  return properties;
+}
+
+Device *createDevices() {
+	/* Allocate and return an array of Devices. */
+	uint32_t count = countVkPhysicalDevices();
+
+	Device *devices = calloc(count, sizeof(Device));
+	if (!devices)
+		Panic("createDevices: unable to allocate Device array\n");
+
+	VkPhysicalDevice *physical_devices = getVkPhysicalDevices(count);
+
+	int i;
+	for (i = 0; i < count; i++) {
+		Device *device = &(devices[i]);
+		VkPhysicalDevice physical_device = physical_devices[i];
+
+		device->physical.device = physical_device;
+		vkGetPhysicalDeviceProperties(physical_device, &(device->physical.properties));
+		vkGetPhysicalDeviceFeatures(physical_device, &(device->physical.features));
+
+		device->physical.queue_family.count = countQueueFamilyProperties(physical_device);
+		device->physical.queue_family.properties = getQueueFamiliesProperties(physical_device, device->physical.queue_family.count);
+	}
+
+	free(physical_devices);
+
+	return devices;
+}
 
 void CreateRenderer() {
 	/* Creates the VkInstance and get the rest of the Vulkan's state */
 
-	Environment *environment = &dev;
+	Environment *environment = &prod;
 
 	sdl = initSDL();
 
@@ -347,4 +399,8 @@ void CreateRenderer() {
 		Panic("CreateInstance: failed to create VkInstance\n");
 
 	vk.debug_utils.messenger = createDebugUtilsMessenger(environment->debug_utils.messenger.create_info);
+
+	vk.devices = createDevices();
+
+	//puts(vk.devices[0].physical.properties.deviceName);
 }

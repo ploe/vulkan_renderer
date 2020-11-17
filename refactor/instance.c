@@ -38,19 +38,11 @@ typedef struct {
     VkPhysicalDevice device;
 		VkPhysicalDeviceProperties properties;
 		VkPhysicalDeviceFeatures features;
-		struct {
-			uint32_t count;
-			VkQueueFamilyProperties *properties;
-		} queue_family;
   } physical;
-  struct {
-    /* Container for VkDevice attributes */
-    VkDevice device;
-  } logical;
-  struct {
-    /* Container for the VkQueue */
-    VkQueue graphics;
-  } queue;
+	struct {
+		uint32_t count;
+		VkQueueFamilyProperties *properties;
+	} queue_family;
 } Device;
 
 /* namespaces */
@@ -79,7 +71,11 @@ static struct vk {
 		VkDebugUtilsMessengerEXT *messenger;
 	} debug_utils;
 
-  Device *devices;
+	struct {
+		Device *data;
+		uint32_t count;
+	} devices;
+
 } vk;
 
 /* constants */
@@ -322,7 +318,7 @@ static uint32_t countQueueFamilyProperties(VkPhysicalDevice physical_device) {
   return count;
 }
 
-static VkQueueFamilyProperties *getQueueFamiliesProperties(VkPhysicalDevice physical_device, uint32_t count) {
+static VkQueueFamilyProperties *getQueueFamilyProperties(VkPhysicalDevice physical_device, uint32_t count) {
   /* Allocate and return VkQueueFamilyProperties array */
   VkQueueFamilyProperties *properties = calloc(count, sizeof(VkQueueFamilyProperties));
 
@@ -334,9 +330,8 @@ static VkQueueFamilyProperties *getQueueFamiliesProperties(VkPhysicalDevice phys
   return properties;
 }
 
-Device *createDevices() {
+static Device *createDevices(uint32_t count) {
 	/* Allocate and return an array of Devices. */
-	uint32_t count = countVkPhysicalDevices();
 
 	Device *devices = calloc(count, sizeof(Device));
 	if (!devices)
@@ -353,8 +348,8 @@ Device *createDevices() {
 		vkGetPhysicalDeviceProperties(physical_device, &(device->physical.properties));
 		vkGetPhysicalDeviceFeatures(physical_device, &(device->physical.features));
 
-		device->physical.queue_family.count = countQueueFamilyProperties(physical_device);
-		device->physical.queue_family.properties = getQueueFamiliesProperties(physical_device, device->physical.queue_family.count);
+		device->queue_family.count = countQueueFamilyProperties(physical_device);
+		device->queue_family.properties = getQueueFamilyProperties(physical_device, device->queue_family.count);
 	}
 
 	free(physical_devices);
@@ -362,10 +357,60 @@ Device *createDevices() {
 	return devices;
 }
 
+static const int NO_QUEUE_FAMILY = -1;
+
+static int getQueueFamily(Device *device, VkQueueFlags flags) {
+	int i;
+	for (i = 0; i < device->queue_family.count; i++) {
+		VkQueueFamilyProperties *properties = &(device->queue_family.properties[i]);
+
+		if (properties->queueFlags & flags) return i;
+	}
+
+	return NO_QUEUE_FAMILY;
+}
+
+static VkDevice createLogicalDevice() {
+	int i;
+	for (i = 0; i < vk.devices.count; i++) {
+		Device *device = &(vk.devices.data[i]);
+
+		int queue_family_index = getQueueFamily(device, VK_QUEUE_GRAPHICS_BIT);
+		if (queue_family_index == NO_QUEUE_FAMILY) continue;
+
+		float queue_priorities = 1.0f;
+
+		VkDeviceQueueCreateInfo queue_create_info = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.pNext = NULL,
+			.flags = 0,
+			.queueFamilyIndex = queue_family_index,
+			.queueCount = 1,
+			.pQueuePriorities = &queue_priorities,
+		};
+
+		VkPhysicalDeviceFeatures features = {0};
+
+		VkDeviceCreateInfo device_create_info = {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.pQueueCreateInfos = &queue_create_info,
+			.pEnabledFeatures = &features,
+		};
+
+		VkDevice logical_device;
+		if (vkCreateDevice(device->physical.device, &device_create_info, NULL, &logical_device) == VK_SUCCESS)
+			return logical_device;
+	}
+
+	Panic("unable to create logical device\n");
+
+	return 0;
+}
+
 void CreateRenderer() {
 	/* Creates the VkInstance and get the rest of the Vulkan's state */
 
-	Environment *environment = &prod;
+	Environment *environment = &dev;
 
 	sdl = initSDL();
 
@@ -400,7 +445,10 @@ void CreateRenderer() {
 
 	vk.debug_utils.messenger = createDebugUtilsMessenger(environment->debug_utils.messenger.create_info);
 
-	vk.devices = createDevices();
+	vk.devices.count = countVkPhysicalDevices();
+	vk.devices.data = createDevices(vk.devices.count);
+
+	VkDevice logical_device = createLogicalDevice();
 
 	//puts(vk.devices[0].physical.properties.deviceName);
 }

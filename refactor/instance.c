@@ -33,18 +33,36 @@ typedef struct {
 
 typedef struct {
   /* Type that keeps the device related attributes together */
+	struct {
+		VkDeviceCreateInfo info;
+	} create;
+
   struct {
     /* Container for VkPhysicalDevice attributes */
     VkPhysicalDevice device;
 		VkPhysicalDeviceProperties properties;
 		VkPhysicalDeviceFeatures features;
   } physical;
+
 	struct {
-		bool created;
-		int graphics, present;
-		uint32_t count;
-		VkQueueFamilyProperties *properties;
-	} queue_family;
+		/* Container for queue related attributes */
+		float priorities;
+
+		struct {
+			/* Container for VkDeviceQueueCreateInfo attributes */
+			uint32_t count;
+			VkDeviceQueueCreateInfo *info;
+		} create;
+
+		struct {
+			/* Container for VkQueueFamilyProperties attributes */
+			int graphics, present;
+			uint32_t count;
+			VkQueueFamilyProperties *properties;
+		} family;
+
+	} queue;
+
 } Device;
 
 /* namespaces */
@@ -349,18 +367,56 @@ static void setQueueFamilies(Device *device) {
 	finds. */
 	int i;
 
-	for (i = 0; i < device->queue_family.count; i++) {
-		VkQueueFamilyProperties *properties = &(device->queue_family.properties[i]);
+	for (i = 0; i < device->queue.family.count; i++) {
+		VkQueueFamilyProperties *properties = &(device->queue.family.properties[i]);
 
 		if (properties->queueFlags & VK_QUEUE_GRAPHICS_BIT)
-			SET_QUEUE_FAMILY(device->queue_family.graphics, i);
+			SET_QUEUE_FAMILY(device->queue.family.graphics, i);
 
 		VkBool32 can_present = VK_FALSE;
 		vkGetPhysicalDeviceSurfaceSupportKHR(device->physical.device, i, vk.surface, &can_present);
 
 		if (can_present)
-			SET_QUEUE_FAMILY(device->queue_family.present, i);
+			SET_QUEUE_FAMILY(device->queue.family.present, i);
 	}
+}
+
+static void setQueueCreateInfo(Device *device) {
+
+	device->queue.create.info = calloc(device->queue.family.count, sizeof(VkDeviceQueueCreateInfo));
+	if (!device->queue.create.info)
+		Panic("setQueueCreateInfo: unable to allocate VkDeviceQueueCreateInfo array for '%s'\n", device->physical.properties.deviceName);
+
+	bool *created = calloc(device->queue.family.count, sizeof(bool));
+	if (!created)
+		Panic("setQueueCreateInfo: unable to allocate created array\n");
+
+	int queue_family[] = {
+		device->queue.family.graphics,
+		device->queue.family.present,
+	};
+
+	int i, count = 0;
+	for (i = 0; i < ARRAY_SIZE(queue_family); i++) {
+		int family_index = queue_family[i];
+
+		if (created[family_index]) continue;
+
+		device->queue.create.info[count] = (VkDeviceQueueCreateInfo) {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+			.queueFamilyIndex = family_index,
+			.queueCount = 1,
+			.pQueuePriorities = &(device->queue.priorities),
+		};
+
+		count += 1;
+		created[family_index] = true;
+	}
+
+	device->queue.create.count = count;
+
+	printf("device->queue.create.count: %d\n", device->queue.create.count);
+	free(created);
 }
 
 static Device *createDevices(uint32_t count) {
@@ -381,18 +437,22 @@ static Device *createDevices(uint32_t count) {
 		vkGetPhysicalDeviceProperties(physical_device, &(device->physical.properties));
 		vkGetPhysicalDeviceFeatures(physical_device, &(device->physical.features));
 
-		device->queue_family.count = countQueueFamilyProperties(physical_device);
-		device->queue_family.properties = getQueueFamilyProperties(physical_device, device->queue_family.count);
+		device->queue.priorities = 1.0f;
+		device->queue.family.count = countQueueFamilyProperties(physical_device);
+		device->queue.family.properties = getQueueFamilyProperties(physical_device, device->queue.family.count);
 
-		device->queue_family.created = calloc(device->queue_family.count, sizeof(bool));
-		if (!device->queue_family.created)
-			Panic("createDevices: unable to allocate queue_family.created array for '%s' (%d)\n", device->physical.properties.deviceName, i);
-
-		device->queue_family.graphics =
-		device->queue_family.present =
+		device->queue.family.graphics =
+		device->queue.family.present =
 			NO_QUEUE_FAMILY;
 
 		setQueueFamilies(device);
+		setQueueCreateInfo(device);
+
+		device->create.info = (VkDeviceCreateInfo) {
+			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.queueCreateInfoCount = device->queue.create.count,
+			.pQueueCreateInfos = device->queue.create.info,
+		};
 	}
 
 	free(physical_devices);
@@ -400,33 +460,14 @@ static Device *createDevices(uint32_t count) {
 	return devices;
 }
 
-static VkDevice createLogicalDevice() {
-	int i;
-	for (i = 0; i < vk.physical.count; i++) {
-		Device *device = &(vk.physical.devices[i]);
+static VkDevice createLogicalDevice(Device *device) {
+	VkPhysicalDeviceFeatures features = {0};
+	device->create.info.pEnabledFeatures = &features;
 
-		float queue_priorities = 1.0f;
 
-		VkDeviceQueueCreateInfo queue_create_info = {
-			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-			.queueFamilyIndex = device->queue_family.graphics,
-			.queueCount = 1,
-			.pQueuePriorities = &queue_priorities,
-		};
-
-		VkPhysicalDeviceFeatures features = {0};
-
-		VkDeviceCreateInfo device_create_info = {
-			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-			.queueCreateInfoCount = 1,
-			.pQueueCreateInfos = &queue_create_info,
-			.pEnabledFeatures = &features,
-		};
-
-		VkDevice logical_device;
-		if (vkCreateDevice(device->physical.device, &device_create_info, NULL, &logical_device) == VK_SUCCESS)
-			return logical_device;
-	}
+	VkDevice logical_device;
+	if (vkCreateDevice(device->physical.device, &device->create.info, NULL, &logical_device) == VK_SUCCESS)
+		return logical_device;
 
 	Panic("createLogicalDevice: unable to create logical device\n");
 
@@ -476,7 +517,7 @@ void CreateRenderer() {
 	vk.physical.count = countVkPhysicalDevices();
 	vk.physical.devices = createDevices(vk.physical.count);
 
-	vk.logical.device = createLogicalDevice();
+	vk.logical.device = createLogicalDevice(&vk.physical.devices[0]);
 
 	//puts(vk.physical[0].physical.properties.deviceName);
 }

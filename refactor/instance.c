@@ -40,6 +40,8 @@ typedef struct {
 		VkPhysicalDeviceFeatures features;
   } physical;
 	struct {
+		bool created;
+		int graphics, present;
 		uint32_t count;
 		VkQueueFamilyProperties *properties;
 	} queue_family;
@@ -56,6 +58,7 @@ static struct sdl {
 static struct vk {
 	/* vk is a namespace containing Vulkan related variables */
 	VkInstance instance;
+	VkSurfaceKHR surface;
 	struct extension_properties {
 		/* extension_properties is a namespace containing the VkExtensionProperties data */
 		VkExtensionProperties *properties;
@@ -72,9 +75,13 @@ static struct vk {
 	} debug_utils;
 
 	struct {
-		Device *data;
+		VkDevice device;
+	} logical;
+
+	struct {
+		Device *devices;
 		uint32_t count;
-	} devices;
+	} physical;
 
 } vk;
 
@@ -202,9 +209,9 @@ static inline uint32_t totalSources(InstanceExtensions *sources, int target) {
 	counts */
 	uint32_t count = 0;
 	int i;
-	for (i = 0; i < target; i++) {
+
+	for (i = 0; i < target; i++)
 		count += sources[i].count;
-	}
 
 	return count;
 }
@@ -330,6 +337,32 @@ static VkQueueFamilyProperties *getQueueFamilyProperties(VkPhysicalDevice physic
   return properties;
 }
 
+/* 0 is a valid VkQueueFamilyProperties index so NO_QUEUE_FAMILY is -1 */
+static const int NO_QUEUE_FAMILY = -1;
+
+/* SET_QUEUE_FAMILY is a ternary expression that sets a queue_family only if it
+hasn't been set yet */
+#define SET_QUEUE_FAMILY(target, value) target = (target == NO_QUEUE_FAMILY) ? value : target
+
+static void setQueueFamilies(Device *device) {
+	/* setQueueFamilies will set the queue_family for device to the first index it
+	finds. */
+	int i;
+
+	for (i = 0; i < device->queue_family.count; i++) {
+		VkQueueFamilyProperties *properties = &(device->queue_family.properties[i]);
+
+		if (properties->queueFlags & VK_QUEUE_GRAPHICS_BIT)
+			SET_QUEUE_FAMILY(device->queue_family.graphics, i);
+
+		VkBool32 can_present = VK_FALSE;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device->physical.device, i, vk.surface, &can_present);
+
+		if (can_present)
+			SET_QUEUE_FAMILY(device->queue_family.present, i);
+	}
+}
+
 static Device *createDevices(uint32_t count) {
 	/* Allocate and return an array of Devices. */
 
@@ -350,6 +383,16 @@ static Device *createDevices(uint32_t count) {
 
 		device->queue_family.count = countQueueFamilyProperties(physical_device);
 		device->queue_family.properties = getQueueFamilyProperties(physical_device, device->queue_family.count);
+
+		device->queue_family.created = calloc(device->queue_family.count, sizeof(bool));
+		if (!device->queue_family.created)
+			Panic("createDevices: unable to allocate queue_family.created array for '%s' (%d)\n", device->physical.properties.deviceName, i);
+
+		device->queue_family.graphics =
+		device->queue_family.present =
+			NO_QUEUE_FAMILY;
+
+		setQueueFamilies(device);
 	}
 
 	free(physical_devices);
@@ -357,34 +400,16 @@ static Device *createDevices(uint32_t count) {
 	return devices;
 }
 
-static const int NO_QUEUE_FAMILY = -1;
-
-static int getQueueFamily(Device *device, VkQueueFlags flags) {
-	int i;
-	for (i = 0; i < device->queue_family.count; i++) {
-		VkQueueFamilyProperties *properties = &(device->queue_family.properties[i]);
-
-		if (properties->queueFlags & flags) return i;
-	}
-
-	return NO_QUEUE_FAMILY;
-}
-
 static VkDevice createLogicalDevice() {
 	int i;
-	for (i = 0; i < vk.devices.count; i++) {
-		Device *device = &(vk.devices.data[i]);
-
-		int queue_family_index = getQueueFamily(device, VK_QUEUE_GRAPHICS_BIT);
-		if (queue_family_index == NO_QUEUE_FAMILY) continue;
+	for (i = 0; i < vk.physical.count; i++) {
+		Device *device = &(vk.physical.devices[i]);
 
 		float queue_priorities = 1.0f;
 
 		VkDeviceQueueCreateInfo queue_create_info = {
 			.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-			.pNext = NULL,
-			.flags = 0,
-			.queueFamilyIndex = queue_family_index,
+			.queueFamilyIndex = device->queue_family.graphics,
 			.queueCount = 1,
 			.pQueuePriorities = &queue_priorities,
 		};
@@ -393,6 +418,7 @@ static VkDevice createLogicalDevice() {
 
 		VkDeviceCreateInfo device_create_info = {
 			.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+			.queueCreateInfoCount = 1,
 			.pQueueCreateInfos = &queue_create_info,
 			.pEnabledFeatures = &features,
 		};
@@ -402,7 +428,7 @@ static VkDevice createLogicalDevice() {
 			return logical_device;
 	}
 
-	Panic("unable to create logical device\n");
+	Panic("createLogicalDevice: unable to create logical device\n");
 
 	return 0;
 }
@@ -445,10 +471,12 @@ void CreateRenderer() {
 
 	vk.debug_utils.messenger = createDebugUtilsMessenger(environment->debug_utils.messenger.create_info);
 
-	vk.devices.count = countVkPhysicalDevices();
-	vk.devices.data = createDevices(vk.devices.count);
+	SDL_Vulkan_CreateSurface(sdl.window, vk.instance, &vk.surface);
 
-	VkDevice logical_device = createLogicalDevice();
+	vk.physical.count = countVkPhysicalDevices();
+	vk.physical.devices = createDevices(vk.physical.count);
 
-	//puts(vk.devices[0].physical.properties.deviceName);
+	vk.logical.device = createLogicalDevice();
+
+	//puts(vk.physical[0].physical.properties.deviceName);
 }
